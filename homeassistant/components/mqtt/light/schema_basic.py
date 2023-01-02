@@ -47,6 +47,7 @@ import homeassistant.util.color as color_util
 from .. import subscription
 from ..config import MQTT_RW_SCHEMA
 from ..const import (
+    CONF_COMMAND_TEMPLATE,
     CONF_COMMAND_TOPIC,
     CONF_ENCODING,
     CONF_QOS,
@@ -149,6 +150,7 @@ VALUES_ON_COMMAND_TYPE = ["first", "last", "brightness"]
 COMMAND_TEMPLATE_KEYS = [
     CONF_BRIGHTNESS_COMMAND_TEMPLATE,
     CONF_COLOR_TEMP_COMMAND_TEMPLATE,
+    CONF_COMMAND_TEMPLATE,
     CONF_EFFECT_COMMAND_TEMPLATE,
     CONF_HS_COMMAND_TEMPLATE,
     CONF_RGB_COMMAND_TEMPLATE,
@@ -185,6 +187,7 @@ _PLATFORM_SCHEMA_BASE = (
             vol.Optional(CONF_COLOR_TEMP_COMMAND_TOPIC): valid_publish_topic,
             vol.Optional(CONF_COLOR_TEMP_STATE_TOPIC): valid_subscribe_topic,
             vol.Optional(CONF_COLOR_TEMP_VALUE_TEMPLATE): cv.template,
+            vol.Optional(CONF_COMMAND_TEMPLATE): cv.template,
             vol.Optional(CONF_EFFECT_COMMAND_TEMPLATE): cv.template,
             vol.Optional(CONF_EFFECT_COMMAND_TOPIC): valid_publish_topic,
             vol.Optional(CONF_EFFECT_LIST): vol.All(cv.ensure_list, [cv.string]),
@@ -755,7 +758,11 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
             return True
 
         if on_command_type == "first":
-            await publish(CONF_COMMAND_TOPIC, self._payload["on"])
+            mqtt_payload = self._command_templates[CONF_COMMAND_TEMPLATE](
+                self._payload["on"],
+                None,
+            )
+            await publish(CONF_COMMAND_TOPIC, mqtt_payload)
             should_update = True
 
         # If brightness is being used instead of an on command, make sure
@@ -895,7 +902,11 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
             )
 
         if on_command_type == "last":
-            await publish(CONF_COMMAND_TOPIC, self._payload["on"])
+            mqtt_payload = self._command_templates[CONF_COMMAND_TEMPLATE](
+                self._payload["on"],
+                None,
+            )
+            await publish(CONF_COMMAND_TOPIC, mqtt_payload)
             should_update = True
 
         if self._optimistic:
@@ -911,9 +922,13 @@ class MqttLight(MqttEntity, LightEntity, RestoreEntity):
 
         This method is a coroutine.
         """
+        mqtt_payload = self._command_templates[CONF_COMMAND_TEMPLATE](
+            self._payload["off"],
+            None,
+        )
         await self.async_publish(
             str(self._topic[CONF_COMMAND_TOPIC]),
-            self._payload["off"],
+            mqtt_payload,
             self._config[CONF_QOS],
             self._config[CONF_RETAIN],
             self._config[CONF_ENCODING],

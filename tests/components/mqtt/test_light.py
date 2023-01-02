@@ -2817,9 +2817,9 @@ async def test_max_mireds(hass, mqtt_mock_entry_with_yaml_config):
             "command_topic",
             None,
             "ON",
-            None,
-            None,
-            None,
+            "command_template",
+            "(value | reverse)",
+            b"N",
         ),
         (
             light.SERVICE_TURN_ON,
@@ -3049,6 +3049,7 @@ async def test_sending_mqtt_brightness_command_with_template(
         light.DOMAIN: {
             "name": "test",
             "command_topic": "test_light_brightness/set",
+            "command_template": '{"Power": "{{ value }}"}',
             "brightness_command_topic": "test_light_brightness/brightness/set",
             "brightness_command_template": "{{ (1000 / value) | round(0) }}",
             "payload_on": "on",
@@ -3068,7 +3069,7 @@ async def test_sending_mqtt_brightness_command_with_template(
 
     mqtt_mock.async_publish.assert_has_calls(
         [
-            call("test_light_brightness/set", "on", 0, False),
+            call("test_light_brightness/set", '{"Power": "on"}', 0, False),
             call("test_light_brightness/brightness/set", "10", 0, False),
         ],
         any_order=True,
